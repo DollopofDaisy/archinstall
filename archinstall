@@ -4,6 +4,7 @@ pacman -Sy --noconfirm pacman-contrib dialog
 devicelist=$(lsblk -dplnx size -o name,size | grep -Ev "boot|rpmb|loop" | tac)
 device=$(dialog --stdout --menu "Select installtion disk" 0 0 0 ${devicelist}) || exit 1
 clear
+
 ### Automatic Formatting
 parted --script "${device}" -- mklabel msdos \
   mkpart primary ext4 1Mib 129MiB \
@@ -18,24 +19,34 @@ mkfs.ext4 "${part_root}"
 mount "${part_root}" /mnt
 mkdir /mnt/boot
 mount "${part_boot}" /mnt/boot
+
 ### Install and Initial Setup
 pacstrap /mnt base base-devel linux linux-firmware grub sudo networkmanager vim
+
 ### fstab
 genfstab -U /mnt >> /mnt/etc/fstab
-# locale and timezone setup
-echo "LANG=en_GB.UTF-8" > /mnt/etc/locale.conf
+
+### locale and timezone setup
+
 ln -sf /usr/share/zoneinfo/America/Detroit /etc/localtime
-locale-gen
+arch-chroot /mnt hwclock --systohc
+sed -i "s/^#${LOCALE} UTF-8/${LOCALE} UTF-8/" /mnt/etc/locale.gen
+arch-chroot /mnt locale-gen
+echo "LANG=${LOCALE}" > /mnt/etc/locale.conf
+
 ### hostname
 hostname=$(dialog --stdout --inputbox "Enter hostname" 0 0) || exit 1
 clear
 : ${hostname:?"hostname cannot be empty"}
 echo "${hostname}" > /mnt/etc/hostname
-### Set up Pacman
-### Further setup in chroot
+
+### Further setup
+arch-chroot /mnt mkinitcpio -p linux
 arch-chroot /mnt systemctl enable NetworkManager
 arch-chroot /mnt grub-install /dev/sda
 arch-chroot /mnt grub-mkconfig - o /boot/grub/grub.cfg
+
+### Root Password
 password=$(dialog --stdout --passwordbox "Enter root password" 0 0) || exit 1
 clear
 : ${password:?"password cannot be empty"}
@@ -43,6 +54,7 @@ password2=$(dialog --stdout --passwordbox "Enter root password again" 0 0) || ex
 clear
 [[ "$password" == "$password2" ]] || ( echo "Passwords did not match"; exit 1; )
 echo "root:$password" | chpasswd --root /mnt
+
 umount -R /mnt
 reboot
 
