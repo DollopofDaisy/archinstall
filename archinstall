@@ -44,7 +44,7 @@ echo "${hostname}" > /mnt/etc/hostname
 arch-chroot /mnt mkinitcpio -p linux
 arch-chroot /mnt systemctl enable NetworkManager
 arch-chroot /mnt grub-install /dev/sda
-arch-chroot /mnt grub-mkconfig - o /boot/grub/grub.cfg
+arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
 
 ### Root Password
 password=$(dialog --stdout --passwordbox "Enter root password" 0 0) || exit 1
