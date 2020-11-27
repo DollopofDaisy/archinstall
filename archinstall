@@ -18,13 +18,31 @@ mkfs.ext4 "${part_root}"
 mount "${part_root}" /mnt
 mkdir /mnt/boot
 mount "${part_boot}" /mnt/boot
-### Install and set up of Arch
+### Install and Initial Setup
 pacstrap /mnt base base-devel linux linux-firmware vim
+### fstab
 genfstab -U /mnt >> /mnt/etc/fstab
+# locale and timezone setup
 echo "LANG=en_GB.UTF-8" > /mnt/etc/locale.conf
 ln -sf /usr/share/zoneinfo/America/Detroit /etc/localtime
 locale-gen
-arch-chroot /mnt /bin/bash
-
-
+### hostname
+hostname=$(dialog --stdout --inputbox "Enter hostname" 0 0) || exit 1
+clear
+: ${hostname:?"hostname cannot be empty"}
+echo "${hostname}" > /mnt/etc/hostname
+### Further setup in chroot
+arch-chroot /mnt pacman -S networkmanager grub
+arch-chroot /mnt systemctl enable NetworkManager
+arch-chroot /mnt grub-install /dev/sda
+arch-chroot /mnt grub-mkconfig - o /boot/grub/grub.cfg
+password=$(dialog --stdout --passwordbox "Enter root password" 0 0) || exit 1
+clear
+: ${password:?"password cannot be empty"}
+password2=$(dialog --stdout --passwordbox "Enter root password again" 0 0) || exit 1
+clear
+[[ "$password" == "$password2" ]] || ( echo "Passwords did not match"; exit 1; )
+echo "root:$password" | chpasswd --root /mnt
+umount -R /mnt
+reboot
 
