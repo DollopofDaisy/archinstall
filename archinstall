@@ -1,3 +1,4 @@
+pacman -Sy --noconfirm pacman-contrib dialog
 ### Arch Auto Disk Formatter (No Swap, No Home)
 ### Disk Selection Menu
 devicelist=$(lsblk -dplnx size -o name,size | grep -Ev "boot|rpmb|loop" | tac)
