@@ -7,7 +7,7 @@ devicelist=$(lsblk -dplnx size -o name,size | grep -Ev "boot|rpmb|loop" | tac)
 device=$(dialog --stdout --menu "Select installtion disk" 0 0 0 ${devicelist}) || exit 1
 clear
 ### Automatic Formatting
-parted --script "${device}" -- mklabel dos \
+parted --script "${device}" -- mklabel msdos \
   mkpart ESP ext4 1Mib 129MiB \
   set 1 boot on \
   mkpart primary ext4 129MiB 100%
@@ -23,8 +23,23 @@ mount "${part_boot}" /mnt/boot
 ### Install and set up of Arch
 pacstrap /mnt base base-devel linux linux-firmware vim
 genfstab -U /mnt >> /mnt/etc/fstab
-
-
+arch-chroot /mnt /bin/bash
+pacman -S networkmanager grub
+systemctl enable NetworkManager
+grub-install /dev/sda
+grub-mkconfig - o /boot/grub/grub.cfg
+password=$(dialog --stdout --passwordbox "Enter admin password" 0 0) || exit 1
+clear
+: ${password:?"password cannot be empty"}
+password2=$(dialog --stdout --passwordbox "Enter admin password again" 0 0) || exit 1
+clear
+[[ "$password" == "$password2" ]] || ( echo "Passwords did not match"; exit 1; )
+echo "root:$password" | chpasswd --root /mnt
+echo "LANG=en_GB.UTF-8" > /mnt/etc/locale.conf
+ln -sf /usr/share/zoneinfo/America/Detroit /etc/localtime
+exit
+umount -R /mnt
+reboot
 
 
 
