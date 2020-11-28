@@ -6,7 +6,7 @@ device=$(dialog --stdout --menu "Select installtion disk" 0 0 0 ${devicelist}) |
 clear
 
 ### Automatic Formatting
-bios=$(dialog --stdout --menu "Select Bios:" 0 0 0 1 "efi" 2 "dos") || exit 1
+bios=$(dialog --stdout --menu "Select Bios:" 0 0 0 1 "UEFI" 2 "Legacy") || exit 1
 case "$bios" in
     "1")
     parted --script "${device}" -- mklabel gpt \
