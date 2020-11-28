@@ -6,17 +6,18 @@ device=$(dialog --stdout --menu "Select installtion disk" 0 0 0 ${devicelist}) |
 clear
 
 ### Automatic Formatting
-    parted --script "${device}" -- mklabel gpt \
-    mkpart ESP fat32 1Mib 129MiB \
-    set 1 boot on \
+
+parted --script "${device}" -- mklabel gpt \
+  mkpart ESP fat32 1Mib 129MiB \
+  set 1 boot on \
     mkpart primary ext4 129MiB 100%
     part_boot="$(ls ${device}* | grep -E "^${device}p?1$")"
     part_root="$(ls ${device}* | grep -E "^${device}p?2$")"
-    wipefs "${part_boot}"
+mkfs.vfat -F32 "${part_boot}"
     wipefs "${part_root}"
     mkfs.vfat -F32 "${part_boot}"
     mkfs.ext4 "${part_root}"
     genfstab -U /mnt >> /mnt/etc/fstab
     mount "${part_root}" /mnt
-    mkdir /mnt/boot/efi
-    mount "${part_boot}" /mnt/boot/efi
+mkdir /mnt/boot/efi
+mount "${part_boot}" /mnt/boot/efi
