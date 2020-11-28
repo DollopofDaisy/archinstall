@@ -10,14 +10,14 @@ bios=$(dialog --stdout --menu "Select Bios:" 0 0 0 1 "UEFI" 2 "Legacy") || exit 
 case "$bios" in
     "1")
     parted --script "${device}" -- mklabel gpt \
-    mkpart EFI fat32 1Mib 129MiB \
+    mkpart ESP fat32 1Mib 129MiB \
     set 1 boot on \
     mkpart primary ext4 129MiB 100%
     part_boot="$(ls ${device}* | grep -E "^${device}p?1$")"
     part_root="$(ls ${device}* | grep -E "^${device}p?2$")"
     wipefs "${part_boot}"
     wipefs "${part_root}"
-    mkfs.fat -F32 "${part_boot}"
+    mkfs.vfat -F32 "${part_boot}"
     mkfs.ext4 "${part_root}"
     mount "${part_root}" /mnt
     mkdir /mnt/boot/efi
@@ -119,5 +119,3 @@ export EDITOR="tee -a"
 echo "%wheel ALL=(ALL) ALL" | arch-chroot /mnt visudo
 
 echo "I use arch BTW"
-umount -R /mnt
-reboot
