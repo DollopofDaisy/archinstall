@@ -1,4 +1,5 @@
-### Arch Installation Tool
+
+### Arch Installation Tool - Currently for Non-EFI Only
 pacman -Sy --noconfirm pacman-contrib dialog
 ### Disk Selection Menu
 devicelist=$(lsblk -dplnx size -o name,size | grep -Ev "boot|rpmb|loop" | tac)
@@ -7,9 +8,9 @@ clear
 
 ### Automatic Formatting
 parted --script "${device}" -- mklabel msdos \
-mkpart primary ext4 1Mib 129MiB \
-set 1 boot on \
-mkpart primary ext4 129MiB 100%
+  mkpart primary ext4 1Mib 129MiB \
+  set 1 boot on \
+  mkpart primary ext4 129MiB 100%
 part_boot="$(ls ${device}* | grep -E "^${device}p?1$")"
 part_root="$(ls ${device}* | grep -E "^${device}p?2$")"
 wipefs "${part_boot}"
@@ -46,13 +47,6 @@ arch-chroot /mnt systemctl enable NetworkManager
 arch-chroot /mnt grub-install /dev/sda
 arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
 
-### Swapfile
-arch-chroot /mnt fallocate -l 4G /swapfile
-arch-chroot /mnt chmod 600 /swapfile
-arch-chroot /mnt mkswap /swapfile
-arch-chroot /mnt swapon /swapfile
-echo '/swapfile none swap sw 0 0' >> /etc/fstab
-
 ### Root Password
 password=$(dialog --stdout --passwordbox "Enter root password" 0 0) || exit 1
 clear
@@ -68,7 +62,7 @@ username=$(dialog --stdout --inputbox "Enter Username" 0 0) || exit 1
 clear
 : ${username:?"username cannot be empty"}
 arch-chroot /mnt useradd -m -s /bin/bash --groups wheel ${username}
-password=$(dialog --stdout --passwordbox "Enter password for ${username}" 0 0) || exit 1
+password=$(dialog --stdout --passwordbox "Enter user password" 0 0) || exit 1
 clear
 : ${password:?"password cannot be empty"}
 password2=$(dialog --stdout --passwordbox "Enter user password again" 0 0) || exit 1
@@ -81,4 +75,3 @@ echo "%wheel ALL=(ALL) ALL" | arch-chroot /mnt visudo
 echo "I use arch BTW"
 umount -R /mnt
 reboot
-
