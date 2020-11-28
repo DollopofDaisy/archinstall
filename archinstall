@@ -1,4 +1,4 @@
-### Arch Installation Tool - Currently for Non-EFI Only
+### Arch Installation Tool
 pacman -Sy --noconfirm pacman-contrib dialog
 ### Disk Selection Menu
 devicelist=$(lsblk -dplnx size -o name,size | grep -Ev "boot|rpmb|loop" | tac)
@@ -6,22 +6,48 @@ device=$(dialog --stdout --menu "Select installtion disk" 0 0 0 ${devicelist}) |
 clear
 
 ### Automatic Formatting
-parted --script "${device}" -- mklabel msdos \
-  mkpart primary ext4 1Mib 129MiB \
-  set 1 boot on \
-  mkpart primary ext4 129MiB 100%
-part_boot="$(ls ${device}* | grep -E "^${device}p?1$")"
-part_root="$(ls ${device}* | grep -E "^${device}p?2$")"
-wipefs "${part_boot}"
-wipefs "${part_root}"
-mkfs.ext4 "${part_boot}"
-mkfs.ext4 "${part_root}"
-mount "${part_root}" /mnt
-mkdir /mnt/boot
-mount "${part_boot}" /mnt/boot
+bios=$(dialog --menu "Select Bios:" 0 0 0 1 "efi" 2 "dos") || exit 1
+case "$bios" in
+    "efi")
+        parted --script "${device}" -- mklabel gpt \
+    mkpart ESP fat32 1Mib 129MiB \
+    set 1 boot on \
+    mkpart primary ext4 129MiB 100%
+    part_boot="$(ls ${device}* | grep -E "^${device}p?1$")"
+    part_root="$(ls ${device}* | grep -E "^${device}p?2$")"
+    wipefs "${part_boot}"
+    wipefs "${part_root}"
+    mkfs.fat -F32 "${part_boot}"
+    mkfs.ext4 "${part_root}"
+    mount "${part_root}" /mnt
+    mkdir /mnt/boot/efi
+    mount "${part_boot}" /mnt/boot/efi
+    "dos")
+    parted --script "${device}" -- mklabel msdos \
+    mkpart primary ext4 1Mib 129MiB \
+    set 1 boot on \
+    mkpart primary ext4 129MiB 100%
+    part_boot="$(ls ${device}* | grep -E "^${device}p?1$")"
+    part_root="$(ls ${device}* | grep -E "^${device}p?2$")"
+    wipefs "${part_boot}"
+    wipefs "${part_root}"
+    mkfs.ext4 "${part_boot}"
+    mkfs.ext4 "${part_root}"
+    mount "${part_root}" /mnt
+    mkdir /mnt/boot
+    mount "${part_boot}" /mnt/boot
+    *)
+    esac
 
 ### Install and Initial Setup
+case "$bios" in
+    "efi")
+pacstrap /mnt base base-devel linux linux-firmware grub efibootmgr sudo networkmanager vim
+    "dos")
 pacstrap /mnt base base-devel linux linux-firmware grub sudo networkmanager vim
+    *)
+    esac
+
 
 ### fstab
 genfstab -U /mnt >> /mnt/etc/fstab
@@ -43,8 +69,23 @@ echo "${hostname}" > /mnt/etc/hostname
 ### Further setup
 arch-chroot /mnt mkinitcpio -p linux
 arch-chroot /mnt systemctl enable NetworkManager
-arch-chroot /mnt grub-install /dev/sda
-arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
+case "$bios" in
+    "efi")
+    arch-chroot grub-install --target=x86_64-efi --bootloader-id=GRUB --efi-directory=/boot/efi --removable
+    arch-chroot grub-mkconfig -o /boot/grub/grub.cfg
+    "dos")
+    arch-chroot /mnt grub-install /dev/sda
+    arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
+    *)
+    esac
+
+
+### Swapfile
+arch-chroot /mnt fallocate -l 4G /swapfile
+arch-chroot /mnt chmod 600 /swapfile
+arch-chroot /mnt mkswap /swapfile
+arch-chroot /mnt swapon /swapfile
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
 
 ### Root Password
 password=$(dialog --stdout --passwordbox "Enter root password" 0 0) || exit 1
@@ -61,7 +102,7 @@ username=$(dialog --stdout --inputbox "Enter Username" 0 0) || exit 1
 clear
 : ${username:?"username cannot be empty"}
 arch-chroot /mnt useradd -m -s /bin/bash --groups wheel ${username}
-password=$(dialog --stdout --passwordbox "Enter user password" 0 0) || exit 1
+password=$(dialog --stdout --passwordbox "Enter password for ${username}" 0 0) || exit 1
 clear
 : ${password:?"password cannot be empty"}
 password2=$(dialog --stdout --passwordbox "Enter user password again" 0 0) || exit 1
