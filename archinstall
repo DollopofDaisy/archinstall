@@ -21,7 +21,6 @@ case "$bios" in
     mkfs.ext4 "${part_root}"
     mount "${part_root}" /mnt
     mkdir /mnt/boot/
-    mount "${part_boot}" /mnt/boot/
     ;;
     "2")
     parted --script "${device}" -- mklabel msdos \
@@ -76,11 +75,12 @@ arch-chroot /mnt systemctl enable NetworkManager
 case "$bios" in
     "1")
     mkdir /mnt/boot/efi
+    mount "${part_boot}" /mnt/boot/
     arch-chroot /mnt grub-install --target=x86_64-efi --bootloader-id=GRUB --efi-directory=/boot/efi --removable
     arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
     ;;
     "2")
-    arch-chroot /mnt grub-install /dev/sda
+    arch-chroot /mnt grub-install $device
     arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
     ;;
     *)
