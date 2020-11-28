@@ -19,5 +19,5 @@ mkfs.vfat -F32 "${part_boot}"
     mkfs.ext4 "${part_root}"
     genfstab -U /mnt >> /mnt/etc/fstab
     mount "${part_root}" /mnt
-mkdir /mnt/boot/efi
-mount "${part_boot}" /mnt/boot/efi
+mkdir /mnt/boot/
+mount "${part_boot}" /mnt/boot/
