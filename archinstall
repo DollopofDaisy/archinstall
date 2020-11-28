@@ -6,48 +6,22 @@ device=$(dialog --stdout --menu "Select installtion disk" 0 0 0 ${devicelist}) |
 clear
 
 ### Automatic Formatting
-bios=$(dialog --menu "Select Bios:" 0 0 0 1 "efi" 2 "dos") || exit 1
-case "$bios" in
-    "efi")
-        parted --script "${device}" -- mklabel gpt \
-    mkpart ESP fat32 1Mib 129MiB \
-    set 1 boot on \
-    mkpart primary ext4 129MiB 100%
-    part_boot="$(ls ${device}* | grep -E "^${device}p?1$")"
-    part_root="$(ls ${device}* | grep -E "^${device}p?2$")"
-    wipefs "${part_boot}"
-    wipefs "${part_root}"
-    mkfs.fat -F32 "${part_boot}"
-    mkfs.ext4 "${part_root}"
-    mount "${part_root}" /mnt
-    mkdir /mnt/boot/efi
-    mount "${part_boot}" /mnt/boot/efi
-    "dos")
-    parted --script "${device}" -- mklabel msdos \
-    mkpart primary ext4 1Mib 129MiB \
-    set 1 boot on \
-    mkpart primary ext4 129MiB 100%
-    part_boot="$(ls ${device}* | grep -E "^${device}p?1$")"
-    part_root="$(ls ${device}* | grep -E "^${device}p?2$")"
-    wipefs "${part_boot}"
-    wipefs "${part_root}"
-    mkfs.ext4 "${part_boot}"
-    mkfs.ext4 "${part_root}"
-    mount "${part_root}" /mnt
-    mkdir /mnt/boot
-    mount "${part_boot}" /mnt/boot
-    *)
-    esac
+parted --script "${device}" -- mklabel msdos \
+mkpart primary ext4 1Mib 129MiB \
+set 1 boot on \
+mkpart primary ext4 129MiB 100%
+part_boot="$(ls ${device}* | grep -E "^${device}p?1$")"
+part_root="$(ls ${device}* | grep -E "^${device}p?2$")"
+wipefs "${part_boot}"
+wipefs "${part_root}"
+mkfs.ext4 "${part_boot}"
+mkfs.ext4 "${part_root}"
+mount "${part_root}" /mnt
+mkdir /mnt/boot
+mount "${part_boot}" /mnt/boot
 
 ### Install and Initial Setup
-case "$bios" in
-    "efi")
-pacstrap /mnt base base-devel linux linux-firmware grub efibootmgr sudo networkmanager vim
-    "dos")
 pacstrap /mnt base base-devel linux linux-firmware grub sudo networkmanager vim
-    *)
-    esac
-
 
 ### fstab
 genfstab -U /mnt >> /mnt/etc/fstab
@@ -69,16 +43,8 @@ echo "${hostname}" > /mnt/etc/hostname
 ### Further setup
 arch-chroot /mnt mkinitcpio -p linux
 arch-chroot /mnt systemctl enable NetworkManager
-case "$bios" in
-    "efi")
-    arch-chroot grub-install --target=x86_64-efi --bootloader-id=GRUB --efi-directory=/boot/efi --removable
-    arch-chroot grub-mkconfig -o /boot/grub/grub.cfg
-    "dos")
-    arch-chroot /mnt grub-install /dev/sda
-    arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
-    *)
-    esac
-
+arch-chroot /mnt grub-install /dev/sda
+arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
 
 ### Swapfile
 arch-chroot /mnt fallocate -l 4G /swapfile
