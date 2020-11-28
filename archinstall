@@ -51,6 +51,12 @@ case "$bios" in
     *)
     esac
 
+### Swapfile
+arch-chroot /mnt fallocate -l 4G /swapfile
+arch-chroot /mnt chmod 600 /swapfile
+arch-chroot /mnt mkswap /swapfile
+arch-chroot /mnt swapon /swapfile
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
 
 ### fstab
 genfstab -U /mnt >> /mnt/etc/fstab
@@ -87,12 +93,6 @@ case "$bios" in
     esac
 
 
-### Swapfile
-arch-chroot /mnt fallocate -l 4G /swapfile
-arch-chroot /mnt chmod 600 /swapfile
-arch-chroot /mnt mkswap /swapfile
-arch-chroot /mnt swapon /swapfile
-echo '/swapfile none swap sw 0 0' >> /etc/fstab
 
 ### Root Password
 password=$(dialog --stdout --passwordbox "Enter root password" 0 0) || exit 1
@@ -119,4 +119,6 @@ echo "${username}:$password" | chpasswd --root /mnt
 export EDITOR="tee -a"
 echo "%wheel ALL=(ALL) ALL" | arch-chroot /mnt visudo
 
+umount -R /mnt
 echo "I use arch BTW"
+reboot
