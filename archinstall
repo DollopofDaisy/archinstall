@@ -10,7 +10,7 @@ bios=$(dialog --stdout --menu "Select Bios:" 0 0 0 1 "efi" 2 "dos") || exit 1
 case "$bios" in
     "1")
     parted --script "${device}" -- mklabel gpt \
-    mkpart ESP fat32 1Mib 129MiB \
+    mkpart EFI fat32 1Mib 129MiB \
     set 1 boot on \
     mkpart primary ext4 129MiB 100%
     part_boot="$(ls ${device}* | grep -E "^${device}p?1$")"
@@ -75,8 +75,8 @@ arch-chroot /mnt mkinitcpio -p linux
 arch-chroot /mnt systemctl enable NetworkManager
 case "$bios" in
     "1")
-    arch-chroot grub-install --target=x86_64-efi --bootloader-id=GRUB --efi-directory=/boot/efi --removable
-    arch-chroot grub-mkconfig -o /boot/grub/grub.cfg
+    arch-chroot /mnt grub-install --target=x86_64-efi --bootloader-id=GRUB --efi-directory=/boot/efi --removable
+    arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
     ;;
     "2")
     arch-chroot /mnt grub-install /dev/sda
