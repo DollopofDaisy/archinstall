@@ -6,18 +6,117 @@ device=$(dialog --stdout --menu "Select installtion disk" 0 0 0 ${devicelist}) |
 clear
 
 ### Automatic Formatting
-
-parted --script "${device}" -- mklabel gpt \
-  mkpart ESP fat32 1Mib 129MiB \
-  set 1 boot on \
+bios=$(dialog --stdout --menu "Select Bios:" 0 0 0 1 "UEFI" 2 "Legacy") || exit 1
+case "$bios" in
+    "1")
+    parted --script "${device}" -- mklabel gpt \
+    mkpart ESP fat32 1Mib 129MiB \
+    set 1 boot on \
     mkpart primary ext4 129MiB 100%
     part_boot="$(ls ${device}* | grep -E "^${device}p?1$")"
     part_root="$(ls ${device}* | grep -E "^${device}p?2$")"
-mkfs.vfat -F32 "${part_boot}"
+    wipefs "${part_boot}"
     wipefs "${part_root}"
     mkfs.vfat -F32 "${part_boot}"
     mkfs.ext4 "${part_root}"
-    genfstab -U /mnt >> /mnt/etc/fstab
     mount "${part_root}" /mnt
-mkdir /mnt/boot/
-mount "${part_boot}" /mnt/boot/
+    mkdir /mnt/boot/
+    mount "${part_boot}" /mnt/boot/
+    ;;
+    "2")
+    parted --script "${device}" -- mklabel msdos \
+    mkpart primary ext4 1Mib 129MiB \
+    set 1 boot on \
+    mkpart primary ext4 129MiB 100%
+    part_boot="$(ls ${device}* | grep -E "^${device}p?1$")"
+    part_root="$(ls ${device}* | grep -E "^${device}p?2$")"
+    wipefs "${part_boot}"
+    wipefs "${part_root}"
+    mkfs.ext4 "${part_boot}"
+    mkfs.ext4 "${part_root}"
+    mount "${part_root}" /mnt
+    mkdir /mnt/boot
+    mount "${part_boot}" /mnt/boot
+    ;;
+    *)
+    esac
+
+### Install and Initial Setup
+case "$bios" in
+    "1")
+    pacstrap /mnt base base-devel linux linux-firmware grub efibootmgr sudo networkmanager vim
+    ;;
+    "2")
+    pacstrap /mnt base base-devel linux linux-firmware grub sudo networkmanager vim
+    ;;
+    *)
+    esac
+
+
+### fstab
+genfstab -U /mnt >> /mnt/etc/fstab
+
+### locale and timezone setup
+
+ln -sf /usr/share/zoneinfo/America/Detroit /etc/localtime
+arch-chroot /mnt hwclock --systohc
+sed -i "s/^#${LOCALE} UTF-8/${LOCALE} UTF-8/" /mnt/etc/locale.gen
+arch-chroot /mnt locale-gen
+echo "LANG=${LOCALE}" > /mnt/etc/locale.conf
+
+### hostname
+hostname=$(dialog --stdout --inputbox "Enter hostname" 0 0) || exit 1
+clear
+: ${hostname:?"hostname cannot be empty"}
+echo "${hostname}" > /mnt/etc/hostname
+
+### Further setup
+arch-chroot /mnt mkinitcpio -p linux
+arch-chroot /mnt systemctl enable NetworkManager
+case "$bios" in
+    "1")
+    mkdir /mnt/boot/efi
+    arch-chroot /mnt grub-install --target=x86_64-efi --bootloader-id=GRUB --efi-directory=/boot/efi --removable
+    arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
+    ;;
+    "2")
+    arch-chroot /mnt grub-install /dev/sda
+    arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
+    ;;
+    *)
+    esac
+
+
+### Swapfile
+arch-chroot /mnt fallocate -l 4G /swapfile
+arch-chroot /mnt chmod 600 /swapfile
+arch-chroot /mnt mkswap /swapfile
+arch-chroot /mnt swapon /swapfile
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
+
+### Root Password
+password=$(dialog --stdout --passwordbox "Enter root password" 0 0) || exit 1
+clear
+: ${password:?"password cannot be empty"}
+password2=$(dialog --stdout --passwordbox "Enter root password again" 0 0) || exit 1
+clear
+[[ "$password" == "$password2" ]] || ( echo "Passwords did not match"; exit 1; )
+echo "root:$password" | chpasswd --root /mnt
+
+
+### User Creation with sudo
+username=$(dialog --stdout --inputbox "Enter Username" 0 0) || exit 1
+clear
+: ${username:?"username cannot be empty"}
+arch-chroot /mnt useradd -m -s /bin/bash --groups wheel ${username}
+password=$(dialog --stdout --passwordbox "Enter password for ${username}" 0 0) || exit 1
+clear
+: ${password:?"password cannot be empty"}
+password2=$(dialog --stdout --passwordbox "Enter user password again" 0 0) || exit 1
+clear
+[[ "$password" == "$password2" ]] || ( echo "Passwords did not match"; exit 1; )
+echo "${username}:$password" | chpasswd --root /mnt
+export EDITOR="tee -a"
+echo "%wheel ALL=(ALL) ALL" | arch-chroot /mnt visudo
+
+echo "I use arch BTW"
