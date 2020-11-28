@@ -75,7 +75,7 @@ arch-chroot /mnt systemctl enable NetworkManager
 case "$bios" in
     "1")
     mkdir /mnt/boot/efi
-    mount "${part_boot}" /mnt/boot/
+    mount "${part_boot}" /mnt/boot/efi
     arch-chroot /mnt grub-install --target=x86_64-efi --bootloader-id=GRUB --efi-directory=/boot/efi --removable
     arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
     ;;
