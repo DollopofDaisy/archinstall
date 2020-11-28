@@ -50,16 +50,16 @@ case "$bios" in
     ;;
     *)
     esac
+    
+### fstab
+genfstab -U /mnt >> /mnt/etc/fstab
 
 ### Swapfile
 arch-chroot /mnt fallocate -l 4G /swapfile
 arch-chroot /mnt chmod 600 /swapfile
 arch-chroot /mnt mkswap /swapfile
 arch-chroot /mnt swapon /swapfile
-echo '/swapfile none swap sw 0 0' >> /etc/fstab
-
-### fstab
-genfstab -U /mnt >> /mnt/etc/fstab
+arch chroot /mnt echo '/swapfile none swap sw 0 0' >> /etc/fstab
 
 ### locale and timezone setup
 
