@@ -72,6 +72,6 @@ echo "${username}:$password" | chpasswd --root /mnt
 export EDITOR="tee -a"
 echo "%wheel ALL=(ALL) ALL" | arch-chroot /mnt visudo
 
-echo "I use arch BTW"
+echo "I use arch BTW :)"
 umount -R /mnt
 reboot
