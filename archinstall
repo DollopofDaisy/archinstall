@@ -16,11 +16,8 @@ case "$bios" in
     part_boot="$(ls ${device}* | grep -E "^${device}p?1$")"
     part_root="$(ls ${device}* | grep -E "^${device}p?2$")"
     wipefs "${part_boot}"
-    wipefs "${part_root}"
     mkfs.vfat -F32 "${part_boot}"
-    mkfs.ext4 "${part_root}"
     mount "${part_root}" /mnt
-    mkdir /mnt/boot/
     ;;
     "2")
     parted --script "${device}" -- mklabel msdos \
@@ -30,15 +27,15 @@ case "$bios" in
     part_boot="$(ls ${device}* | grep -E "^${device}p?1$")"
     part_root="$(ls ${device}* | grep -E "^${device}p?2$")"
     wipefs "${part_boot}"
-    wipefs "${part_root}"
     mkfs.ext4 "${part_boot}"
-    mkfs.ext4 "${part_root}"
     mount "${part_root}" /mnt
-    mkdir /mnt/boot
     mount "${part_boot}" /mnt/boot
     ;;
     *)
     esac
+    wipefs "${part_root}"
+    mkfs.ext4 "${part_root}"
+    mkdir /mnt/boot/
 
 ### Install and Initial Setup
 case "$bios" in
