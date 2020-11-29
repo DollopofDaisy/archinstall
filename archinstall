@@ -1,4 +1,4 @@
-acman -Sy --noconfirm pacman-contrib dialog
+pacman -Sy --noconfirm pacman-contrib dialog
 ### Disk Selection Menu
 devicelist=$(lsblk -dplnx size -o name,size | grep -Ev "boot|rpmb|loop" | tac)
 device=$(dialog --stdout --menu "Select installtion disk" 0 0 0 ${devicelist}) || exit 1
